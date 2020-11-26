@@ -3,7 +3,7 @@
 #include <map>
 #include <algorithm>
 #include <cassert>
-
+#include <vector>
 
 template<class T> struct internal_remove_member_pointer 
 {
@@ -205,16 +205,30 @@ auto max(const C& c, T C::value_type::*member)
 }
 
 
-template<typename C, typename T, typename Pred>
-auto sort(C& c, T C::value_type::*member, Pred pred)
+template<typename Container, typename Pred, typename... Members>
+auto sort(Container&& c, Pred pred, Members... members)
 {
     return std::sort(std::begin(c), std::end(c),
-    [member, pred](auto& a, auto& b)
+    [members..., pred](auto& a, auto& b)
     {
-        return pred(a.*member, b.*member);
+        auto a_tuple = std::make_tuple((a.*members)...);
+        auto b_tuple = std::make_tuple((b.*members)...);
+        return pred(a_tuple, b_tuple);
     });
 }
 
+
+template<typename Container, typename... Members>
+auto sort_asc(Container&& c, Members... members)
+{
+    sort(c, std::less{}, members...);
+}
+
+template<typename Container, typename... Members>
+auto sort_des(Container&& c, Members... members)
+{
+    sort(c, std::greater{}, members...);
+}
 
 template <typename C>
 auto inplace_head(C& c, int n)
