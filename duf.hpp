@@ -264,3 +264,16 @@ auto inplace_head(C& c, int n)
     }
     c.resize(n);
 }
+
+
+template<typename R, typename C, typename T>
+auto extract(const C& c, T C::value_type::*member)
+{
+    auto res = R(c.size());
+    std::transform(c.begin(), c.end(), res.begin(),
+    [member](const auto& row)
+    {
+        return row.*member;
+    });
+    return res;
+}
