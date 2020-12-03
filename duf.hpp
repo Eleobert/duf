@@ -85,7 +85,7 @@ auto group_by(Container&& df, Members... members)
     // at each insertion).
     auto groub_elements_counter = std::map<key_type, std::vector<int>>();
 
-    for(int i = 0; i < df.size(); i++)
+    for(size_t i = 0; i < df.size(); i++)
     {
         const auto key = std::make_tuple((df[i].*members)...);
         groub_elements_counter[key].emplace_back(i);
@@ -128,7 +128,7 @@ auto subset(const Container& c, Pred func)
 {
     auto indexes = std::vector<int>();
 
-    for(int i = 0; i < c.size(); i++)
+    for(size_t i = 0; i < c.size(); i++)
     {
         if(func(c[i]) == true)
         {
