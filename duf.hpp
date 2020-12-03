@@ -40,6 +40,7 @@ struct internal_remove_member_pointer<T C::*>
 };
 
 
+// use map so it will order by key
 template<typename Container, typename... Members>
 auto group_by(const Container& df, Members... members)
 {
@@ -135,7 +136,7 @@ auto subset(const Container& c, Pred func)
         }
     }
 
-    auto result = c(indexes.size());
+    auto result = Container(indexes.size());
     std::transform(indexes.begin(), indexes.end(), result.begin(),
     [&c](auto index)
     {
