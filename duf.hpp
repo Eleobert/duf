@@ -229,7 +229,7 @@ auto max(const C& c, T C::value_type::*member)
 
 
 template<typename Container, typename Pred, typename... Members>
-auto sort(Container&& c, Pred pred, Members... members)
+auto internal_sort(Container&& c, Pred pred, Members... members)
 {
     return std::sort(std::begin(c), std::end(c),
     [members..., pred](auto& a, auto& b)
@@ -244,13 +244,13 @@ auto sort(Container&& c, Pred pred, Members... members)
 template<typename Container, typename... Members>
 auto sort_asc(Container&& c, Members... members)
 {
-    sort(c, std::less{}, members...);
+    internal_sort(c, std::less{}, members...);
 }
 
 template<typename Container, typename... Members>
 auto sort_des(Container&& c, Members... members)
 {
-    sort(c, std::greater{}, members...);
+    internal_sort(c, std::greater{}, members...);
 }
 
 template <typename C>
