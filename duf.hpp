@@ -247,3 +247,23 @@ auto extract(const C& c, T C::value_type::*member)
     });
     return res;
 }
+
+
+template<typename Container, typename Member, typename... Members>
+auto unique(Container c, Member member, Members... members)
+{
+    sort_asc(c, member, members...);
+
+    auto comp = [](auto a, auto b, auto ptr)
+    {
+        return a.*ptr == b.*ptr;
+    };
+
+    auto it = std::unique(c.begin(), c.end(),
+    [comp, member, members...](auto& a, auto& b)
+    {
+        return comp(a, b, member) && (comp(a, b, members) && ...);
+    });
+    c.resize(it - std::begin(c));
+    return c;
+}
