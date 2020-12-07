@@ -26,7 +26,7 @@
 #include <algorithm>
 #include <cassert>
 #include <vector>
-
+#include <cmath>
 
 template<class T> struct internal_remove_member_pointer 
 {
@@ -249,15 +249,71 @@ auto extract(const C& c, T C::value_type::*member)
 }
 
 
+// special comparators that handle nans
+namespace internal_comparators
+{
+
+template<typename T>
+auto equal(T a, T b)
+{
+    if constexpr (std::is_floating_point<T>::value)
+    {
+        if(std::isnan(a) && std::isnan(b)) return true;
+    }
+    return a == b;
+}
+
+
+template<typename T>
+auto less(T a, T b)
+{
+    if constexpr (std::is_floating_point<T>::value)
+    {
+        if(std::isnan(b)) return true;
+    }
+    return a < b;
+}
+
+
+template<size_t i, size_t size, typename... Elements>
+struct tuple_comparator
+{
+    static auto tuple_less(const std::tuple<Elements...>& a, const std::tuple<Elements...>& b) -> bool
+    {
+
+        return less(std::get<i>(a), std::get<i>(b)) || (!less(std::get<i>(b), std::get<i>(a))) &&
+               tuple_comparator<i + 1, size, Elements...>::tuple_less(a, b);
+    }
+};
+
+
+template<size_t size, typename... Elements>
+struct tuple_comparator<size, size, Elements...>
+{
+    static auto tuple_less(const std::tuple<Elements...>& a, const std::tuple<Elements...>& b) -> bool
+    {
+        return true;
+    }
+};
+
+}
+
+
 template<typename Container, typename Member, typename... Members>
 auto unique(Container c, Member member, Members... members)
 {
-    sort_asc(c, member, members...);
+    using namespace internal_comparators;
 
     auto comp = [](auto a, auto b, auto ptr)
     {
-        return a.*ptr == b.*ptr;
+        return equal(a.*ptr, b.*ptr);
     };
+
+    auto pred = tuple_comparator<0, sizeof...(Members) + 1,
+                                 typename internal_remove_member_pointer<Member>::type,
+                                 typename internal_remove_member_pointer<Members>::type...>::tuple_less;
+
+    internal_sort(c, pred, member, members...);
 
     auto it = std::unique(c.begin(), c.end(),
     [comp, member, members...](auto& a, auto& b)
