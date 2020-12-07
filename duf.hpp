@@ -27,6 +27,7 @@
 #include <cassert>
 #include <vector>
 
+
 template<class T> struct internal_remove_member_pointer 
 {
     typedef T type;
@@ -69,39 +70,6 @@ auto group_by(const Container& df, Members... members)
             {
                 return df[index];
             });
-    }
-    return result;
-}
-
-
-template<typename Container, typename... Members>
-auto group_by(Container&& df, Members... members)
-{
-    using key_type = std::tuple<typename internal_remove_member_pointer<Members>::type...>;
-
-    // First we get the indexes of the elements of each group, so we will know
-    // in advance their dataset size (we could just iterate and emplace back 
-    // the element into its respective group, but this would resize the dataset 
-    // at each insertion).
-    auto groub_elements_counter = std::map<key_type, std::vector<int>>();
-
-    for(size_t i = 0; i < df.size(); i++)
-    {
-        const auto key = std::make_tuple((df[i].*members)...);
-        groub_elements_counter[key].emplace_back(i);
-    }
-    // Now perform the actual grouping 
-    auto result = std::map<key_type, typename std::remove_reference<Container>::type>();
-    
-    for (auto& [key, indexes]: groub_elements_counter)
-    {
-        auto& group = result[key];
-        group.resize(indexes.size());
-        std::transform(indexes.begin(), indexes.end(), group.begin(),
-        [&df](auto index)
-        {
-            return std::move(df[index]);
-        });
     }
     return result;
 }
@@ -247,11 +215,13 @@ auto sort_asc(Container&& c, Members... members)
     internal_sort(c, std::less{}, members...);
 }
 
+
 template<typename Container, typename... Members>
 auto sort_des(Container&& c, Members... members)
 {
     internal_sort(c, std::greater{}, members...);
 }
+
 
 template <typename C>
 auto inplace_head(C& c, int n)
