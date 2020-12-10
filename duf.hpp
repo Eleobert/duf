@@ -292,7 +292,7 @@ struct tuple_comparator<size, size, Elements...>
 {
     static auto tuple_less(const std::tuple<Elements...>& a, const std::tuple<Elements...>& b) -> bool
     {
-        return true;
+        return false;
     }
 };
 
