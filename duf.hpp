@@ -281,8 +281,8 @@ struct tuple_comparator
     static auto tuple_less(const std::tuple<Elements...>& a, const std::tuple<Elements...>& b) -> bool
     {
 
-        return less(std::get<i>(a), std::get<i>(b)) || (!less(std::get<i>(b), std::get<i>(a))) &&
-               tuple_comparator<i + 1, size, Elements...>::tuple_less(a, b);
+        return less(std::get<i>(a), std::get<i>(b)) || ((!less(std::get<i>(b), std::get<i>(a))) &&
+               tuple_comparator<i + 1, size, Elements...>::tuple_less(a, b));
     }
 };
 
