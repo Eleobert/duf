@@ -105,6 +105,17 @@ constexpr auto make_tuple_less()
     return tuple_less_t<0u, size, typename internal_remove_member_pointer<Members>::type...>::tuple_less;
 }
 
+template<typename... Members>
+constexpr auto make_tuple_more()
+{
+    auto l    = make_tuple_less<Members...>();
+    auto more = [l](const auto& a, const auto& b)
+    {
+        return l(b, a);
+    };
+    return more;
+}
+
 }
 
 
@@ -282,14 +293,16 @@ auto internal_sort(Container& c, Pred pred, Members... members)
 template<typename Container, typename... Members>
 auto sort_asc(Container& c, Members... members)
 {
-    internal_sort(c, std::less{}, members...);
+    using namespace internal_comparators;
+    internal_sort(c, make_tuple_less<Members...>(), members...);
 }
 
 
 template<typename Container, typename... Members>
 auto sort_des(Container& c, Members... members)
 {
-    internal_sort(c, std::greater{}, members...);
+    using namespace internal_comparators;
+    internal_sort(c, make_tuple_more<Members...>(), members...);
 }
 
 
