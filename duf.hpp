@@ -44,35 +44,102 @@ struct internal_remove_member_pointer<T C::*>
 };
 
 
+// special comparators used to handle nans
+namespace internal_comparators
+{
+
+template<typename T>
+constexpr auto equal(const T& a, const T& b)
+{
+    if constexpr (std::is_floating_point<T>::value)
+    {
+        if(std::isnan(a) && std::isnan(b)) return true;
+    }
+    return a == b;
+}
+
+
+template<typename T>
+constexpr auto less(const T& a, const T& b)
+{
+    if constexpr (std::is_floating_point<T>::value)
+    {
+        if(std::isnan(b))
+        {
+            if(std::isnan(a))
+            {
+                return false;
+            }
+            return true;
+        }
+    }
+    return a < b;
+}
+
+
+template<size_t i, size_t size, typename... Elements>
+struct tuple_less_t
+{
+    constexpr static auto tuple_less(const std::tuple<Elements...>& a, const std::tuple<Elements...>& b) -> bool
+    {
+        return less(std::get<i>(a), std::get<i>(b)) || (!less(std::get<i>(b), std::get<i>(a)) &&
+               tuple_less_t<i + 1, size, Elements...>::tuple_less(a, b));
+    }
+};
+
+
+template<size_t size, typename... Elements>
+struct tuple_less_t<size, size, Elements...>
+{
+    constexpr static auto tuple_less(const std::tuple<Elements...>& a, const std::tuple<Elements...>& b) -> bool
+    {
+        return false;
+    }
+};
+
+// make tuple less from member pointers
+template<typename... Members>
+constexpr auto make_tuple_less()
+{
+    constexpr auto size = sizeof...(Members);
+    return tuple_less_t<0u, size, typename internal_remove_member_pointer<Members>::type...>::tuple_less;
+}
+
+}
+
+
+
 // use map so it will order by key
 template<typename Container, typename... Members>
 auto group_by(const Container& df, Members... members)
 {
     using key_type = std::tuple<typename internal_remove_member_pointer<Members>::type...>;
+    using namespace internal_comparators;
 
     // First we get the indexes of the elements of each group, so we will know
     // in advance their dataset size (we could just iterate and emplace back 
     // the element into its respective group, but this would resize the dataset 
     // at each insertion).
-    auto groub_elements_counter = std::map<key_type, std::vector<int>>();
-
+    auto comp = make_tuple_less<Members...>();
+    auto groub_elements_counter = std::map<key_type, std::vector<int>, decltype(comp)>(comp);
     for(size_t i = 0; i < df.size(); i++)
     {
         const auto key = std::make_tuple((df[i].*members)...);
         groub_elements_counter[key].emplace_back(i);
     }
+
     // Now perform the actual grouping 
-    auto result = std::map<key_type, Container>();
+    auto result = std::map<key_type, Container, decltype(comp)>(comp);
     
     for (auto& [key, indexes]: groub_elements_counter)
     {
         auto& group = result[key];
         group = Container(indexes.size());
         std::transform(indexes.begin(), indexes.end(), group.begin(),
-            [&df](auto index)
-            {
-                return df[index];
-            });
+        [&df](auto index)
+        {
+            return df[index];
+        });
     }
     return result;
 }
@@ -252,70 +319,12 @@ auto extract(const C& c, T C::value_type::*member)
 }
 
 
-// special comparators that handle nans
-namespace internal_comparators
-{
-
-template<typename T>
-constexpr auto equal(const T& a, const T& b)
-{
-    if constexpr (std::is_floating_point<T>::value)
-    {
-        if(std::isnan(a) && std::isnan(b)) return true;
-    }
-    return a == b;
-}
-
-
-template<typename T>
-constexpr auto less(const T& a, const T& b)
-{
-    if constexpr (std::is_floating_point<T>::value)
-    {
-        if(std::isnan(b))
-        {
-            if(std::isnan(a))
-            {
-                return false;
-            }
-            return true;
-        }
-    }
-    return a < b;
-}
-
-
-template<size_t i, size_t size, typename... Elements>
-struct tuple_comparator
-{
-    constexpr static auto tuple_less(const std::tuple<Elements...>& a, const std::tuple<Elements...>& b) -> bool
-    {
-        return less(std::get<i>(a), std::get<i>(b)) || (!less(std::get<i>(b), std::get<i>(a)) &&
-               tuple_comparator<i + 1, size, Elements...>::tuple_less(a, b));
-    }
-};
-
-
-template<size_t size, typename... Elements>
-struct tuple_comparator<size, size, Elements...>
-{
-    constexpr static auto tuple_less(const std::tuple<Elements...>& a, const std::tuple<Elements...>& b) -> bool
-    {
-        return false;
-    }
-};
-
-}
-
-
 template<typename Container, typename Member, typename... Members>
 auto unique(Container c, Member member, Members... members)
 {
     using namespace internal_comparators;
 
-    auto l = tuple_comparator<0u, sizeof...(Members) + 1,
-                    typename internal_remove_member_pointer<Member>::type,
-                    typename internal_remove_member_pointer<Members>::type...>::tuple_less;
+    auto l = make_tuple_less<Member, Members...>();
 
     internal_sort(c, l, member, members...);
 
