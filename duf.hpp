@@ -20,6 +20,8 @@
  * SOFTWARE.
  */
 
+#pragma once
+
 #include <tuple>
 #include <functional>
 #include <map>
@@ -27,6 +29,7 @@
 #include <cassert>
 #include <vector>
 #include <cmath>
+
 
 template<class T> struct internal_remove_member_pointer 
 {
@@ -163,7 +166,7 @@ auto sum(const C& c, T C::value_type::*member) -> double
     typename std::remove_pointer<T>::type result{};
     for(auto& row: c)
     {
-        result += row.*member; 
+        result += row.*member;
     }
     return result;
 }
@@ -200,7 +203,7 @@ template<typename Container, typename Pred, typename... Members>
 auto internal_sort(Container& c, Pred pred, Members... members)
 {
     std::sort(std::begin(c), std::end(c),
-    [members..., pred](auto& a, auto& b)
+    [members..., pred](const auto& a, const auto& b)
     {
         auto a_tuple = std::make_tuple((a.*members)...);
         auto b_tuple = std::make_tuple((b.*members)...);
@@ -254,7 +257,7 @@ namespace internal_comparators
 {
 
 template<typename T>
-auto equal(T a, T b)
+constexpr auto equal(const T& a, const T& b)
 {
     if constexpr (std::is_floating_point<T>::value)
     {
@@ -265,11 +268,18 @@ auto equal(T a, T b)
 
 
 template<typename T>
-auto less(T a, T b)
+constexpr auto less(const T& a, const T& b)
 {
     if constexpr (std::is_floating_point<T>::value)
     {
-        if(std::isnan(b)) return true;
+        if(std::isnan(b))
+        {
+            if(std::isnan(a))
+            {
+                return false;
+            }
+            return true;
+        }
     }
     return a < b;
 }
@@ -278,10 +288,9 @@ auto less(T a, T b)
 template<size_t i, size_t size, typename... Elements>
 struct tuple_comparator
 {
-    static auto tuple_less(const std::tuple<Elements...>& a, const std::tuple<Elements...>& b) -> bool
+    constexpr static auto tuple_less(const std::tuple<Elements...>& a, const std::tuple<Elements...>& b) -> bool
     {
-
-        return less(std::get<i>(a), std::get<i>(b)) || ((!less(std::get<i>(b), std::get<i>(a))) &&
+        return less(std::get<i>(a), std::get<i>(b)) || (!less(std::get<i>(b), std::get<i>(a)) &&
                tuple_comparator<i + 1, size, Elements...>::tuple_less(a, b));
     }
 };
@@ -290,7 +299,7 @@ struct tuple_comparator
 template<size_t size, typename... Elements>
 struct tuple_comparator<size, size, Elements...>
 {
-    static auto tuple_less(const std::tuple<Elements...>& a, const std::tuple<Elements...>& b) -> bool
+    constexpr static auto tuple_less(const std::tuple<Elements...>& a, const std::tuple<Elements...>& b) -> bool
     {
         return false;
     }
@@ -304,21 +313,21 @@ auto unique(Container c, Member member, Members... members)
 {
     using namespace internal_comparators;
 
-    auto comp = [](auto a, auto b, auto ptr)
+    auto l = tuple_comparator<0u, sizeof...(Members) + 1,
+                    typename internal_remove_member_pointer<Member>::type,
+                    typename internal_remove_member_pointer<Members>::type...>::tuple_less;
+
+    internal_sort(c, l, member, members...);
+
+    auto eq = [](const auto& a, const auto& b, auto ptr)
     {
         return equal(a.*ptr, b.*ptr);
     };
 
-    auto pred = tuple_comparator<0, sizeof...(Members) + 1,
-                                 typename internal_remove_member_pointer<Member>::type,
-                                 typename internal_remove_member_pointer<Members>::type...>::tuple_less;
-
-    internal_sort(c, pred, member, members...);
-
     auto it = std::unique(c.begin(), c.end(),
-    [comp, member, members...](auto& a, auto& b)
+    [eq, member, members...](const auto& a, const auto& b)
     {
-        return comp(a, b, member) && (comp(a, b, members) && ...);
+        return eq(a, b, member) && (eq(a, b, members) && ...);
     });
     c.resize(it - std::begin(c));
     return c;
