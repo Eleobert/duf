@@ -354,3 +354,13 @@ auto unique(Container c, Member member, Members... members)
     c.resize(it - std::begin(c));
     return c;
 }
+
+
+template<typename C, typename T>
+auto fill(C& c, T C::value_type::*member, T value)
+{
+    for(auto& e: c)
+    {
+        e.*member = value;
+    }
+}
