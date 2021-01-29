@@ -173,20 +173,29 @@ auto n_groups(const Container& df, Members... members)
 
 
 template<typename Container, typename Pred>
-auto subset(const Container& c, Pred func)
+auto which(const Container& c, Pred func)
 {
-    auto indexes = std::vector<int>();
+    auto indices = std::vector<int>();
 
     for(size_t i = 0; i < c.size(); i++)
     {
         if(func(c[i]) == true)
         {
-            indexes.emplace_back(i);
+            indices.emplace_back(i);
         }
     }
 
-    auto result = Container(indexes.size());
-    std::transform(indexes.begin(), indexes.end(), result.begin(),
+    return indices;
+}
+
+
+template<typename Container, typename Pred>
+auto subset(const Container& c, Pred func)
+{
+    auto indices = which(c, func);
+
+    auto result = Container(indices.size());
+    std::transform(indices.begin(), indices.end(), result.begin(),
     [&c](auto index)
     {
         return c[index];
