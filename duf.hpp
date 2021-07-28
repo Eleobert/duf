@@ -373,3 +373,44 @@ auto fill(C& c, T C::value_type::*member, T value)
         e.*member = value;
     }
 }
+
+
+/* Apply binary operation to at least 2 operands, with left associativity, eg:
+ * a + b + c => ((a + b) + c) 
+ */
+template<typename Op, typename Member1, typename Member2, typename... OtherMembers>
+auto variadic_bin_op(const Op op, Member1 member1, Member2 member2, 
+    OtherMembers... others)
+{
+    if constexpr (sizeof...(OtherMembers) > 0)
+    {
+        return variadic_bin_op(op, op(member1, member2), others...);
+    }
+    return op(member1, member2);
+}
+
+
+template<typename R, typename Container, typename Prod, typename Member1, typename Member2, 
+    typename... OtherMembers>
+auto inner_prod(const Container& c, Prod prod, Member1 member1, Member2 member2, 
+    OtherMembers... others)
+{
+   R res(c.size());
+
+   for(auto i = 0ul; i < c.size(); i++)
+   {
+       auto& row = c[i];
+       res[i] = variadic_bin_op(prod, row.*member1, row.*member2, (row.*others)...);
+   }
+    return res;
+}
+
+
+template<typename R, typename Container, typename Member1, typename Member2, 
+    typename... OtherMembers>
+auto inner_sum(const Container& c, Member1 member1, Member2 member2, 
+    OtherMembers... others)
+{
+   using res_t = typename internal_remove_member_pointer<Member1>::type;
+   return inner_prod<R>(c, std::plus<res_t>(), member1, member2, others...);
+}
