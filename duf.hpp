@@ -375,6 +375,18 @@ auto fill(C& c, T C::value_type::*member, T value)
 }
 
 
+/* Returns the value if the second argument is a member pointers. Otherwise returns val.
+ */
+template<typename C, typename T>
+auto get_val(const C& c, T val)
+{
+    if constexpr (std::is_member_object_pointer<decltype(val)>::value)
+    {
+        return c.*val;
+    }
+    else return val;
+}
+
 /* Apply binary operation to at least 2 operands, with left associativity, eg:
  * a + b + c => ((a + b) + c) 
  */
@@ -395,13 +407,14 @@ template<typename R, typename Container, typename Prod, typename Member1, typena
 auto inner_prod(const Container& c, Prod prod, Member1 member1, Member2 member2, 
     OtherMembers... others)
 {
-   R res(c.size());
-
-   for(auto i = 0ul; i < c.size(); i++)
-   {
-       auto& row = c[i];
-       res[i] = variadic_bin_op(prod, row.*member1, row.*member2, (row.*others)...);
-   }
+    R res(c.size());
+    
+    for(auto i = 0ul; i < c.size(); i++)
+    {
+        auto& row = c[i];
+        res[i] = variadic_bin_op(prod, get_val(row, member1), get_val(row, member2), 
+            get_val(row, others)...);
+    }
     return res;
 }
 
