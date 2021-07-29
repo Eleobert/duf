@@ -387,6 +387,7 @@ auto get_val(const C& c, T val)
     else return val;
 }
 
+
 /* Apply binary operation to at least 2 operands, with left associativity, eg:
  * a + b + c => ((a + b) + c) 
  */
@@ -426,4 +427,15 @@ auto inner_sum(const Container& c, Member1 member1, Member2 member2,
 {
    using res_t = typename internal_remove_member_pointer<Member1>::type;
    return inner_prod<R>(c, std::plus<res_t>(), member1, member2, others...);
+}
+
+
+template<typename C, typename T1, typename T2>
+auto set_values(C& c, T1 C::value_type::*member, T2 values)
+{
+    assert(c.size() == values.size());
+    for(auto i = 0ul; i < c.size(); i++)
+    {
+        c[i].*member = values[i];
+    }
 }
