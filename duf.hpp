@@ -439,3 +439,32 @@ auto set_values(C& c, T1 C::value_type::*member, T2 values)
         c[i].*member = values[i];
     }
 }
+
+
+template<typename Container, typename Pred, typename... Members>
+auto internal_is_sorted(Container& c, Pred pred, Members... members) -> bool
+{
+    return std::is_sorted(std::begin(c), std::end(c),
+    [members..., pred](const auto& a, const auto& b)
+    {
+        auto a_tuple = std::make_tuple((a.*members)...);
+        auto b_tuple = std::make_tuple((b.*members)...);
+        return pred(a_tuple, b_tuple);
+    });
+}
+
+
+template<typename Container, typename... Members>
+auto is_sorted_asc(Container& c, Members... members) -> bool
+{
+    using namespace internal_comparators;
+    return internal_is_sorted(c, make_tuple_less<Members...>(), members...);
+}
+
+
+template<typename Container, typename... Members>
+auto is_sorted_des(Container& c, Members... members) -> bool
+{
+    using namespace internal_comparators;
+    return internal_is_sorted(c, make_tuple_more<Members...>(), members...);
+}
